@@ -1,0 +1,129 @@
+// ----------------------------------------
+// Movie Booking System - Prisma Schema
+// ----------------------------------------
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===== User =====
+model User {
+  id           Int           @id @default(autoincrement())
+  email        String        @unique
+  password     String
+  name         String
+  reservations Reservation[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@map("users")
+}
+
+// ===== Movie =====
+model Movie {
+  id          Int         @id @default(autoincrement())
+  title       String
+  description String
+  runningTime Int // minutes
+  rating      String // ALL, 12, 15, 19
+  posterUrl   String?
+  releaseDate DateTime
+  screenings  Screening[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@map("movies")
+}
+
+// ===== Theater (상영관) =====
+model Theater {
+  id         Int         @id @default(autoincrement())
+  name       String      @unique // "1관", "2관"
+  totalRows  Int // A~?
+  totalCols  Int // 1~?
+  seats      Seat[]
+  screenings Screening[]
+  createdAt  DateTime    @default(now())
+
+  @@map("theaters")
+}
+
+// ===== Seat (좌석) =====
+model Seat {
+  id               Int               @id @default(autoincrement())
+  theater          Theater           @relation(fields: [theaterId], references: [id])
+  theaterId        Int
+  row              String // "A", "B", ...
+  col              Int // 1, 2, ...
+  reservationSeats ReservationSeat[]
+  createdAt        DateTime          @default(now())
+
+  @@unique([theaterId, row, col])
+  @@map("seats")
+}
+
+// ===== Screening (상영) =====
+model Screening {
+  id               Int               @id @default(autoincrement())
+  movie            Movie             @relation(fields: [movieId], references: [id])
+  movieId          Int
+  theater          Theater           @relation(fields: [theaterId], references: [id])
+  theaterId        Int
+  startTime        DateTime
+  endTime          DateTime
+  price            Int
+  reservations     Reservation[]
+  reservationSeats ReservationSeat[]
+  createdAt        DateTime          @default(now())
+
+  @@index([startTime])
+  @@map("screenings")
+}
+
+// ===== Reservation (예매) =====
+enum ReservationStatus {
+  CONFIRMED
+  CANCELLED
+}
+
+model Reservation {
+  id               Int               @id @default(autoincrement())
+  user             User              @relation(fields: [userId], references: [id])
+  userId           Int
+  screening        Screening         @relation(fields: [screeningId], references: [id])
+  screeningId      Int
+  status           ReservationStatus @default(CONFIRMED)
+  totalPrice       Int
+  reservationSeats ReservationSeat[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([userId])
+  @@map("reservations")
+}
+
+// ===== ReservationSeat (예매-좌석 매핑) =====
+// 예매-좌석 매핑 테이블이자 동시성 제어의 핵심.
+// screeningId는 Reservation 경유 간접 조회 가능하나,
+// 아래 unique 제약 부여를 위해 비정규화하여 직접 보관.
+model ReservationSeat {
+  id            Int         @id @default(autoincrement())
+  reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  reservationId Int
+  seat          Seat        @relation(fields: [seatId], references: [id])
+  seatId        Int
+  screening     Screening   @relation(fields: [screeningId], references: [id])
+  screeningId   Int
+  createdAt     DateTime    @default(now())
+
+  // 동일 상영 + 동일 좌석은 1회만 예매 가능.
+  // 동시 요청 발생 시에도 DB 레벨에서 단일 성공 보장.
+  // (예매 취소 시 해당 행 삭제 → 좌석 즉시 재예매 가능)
+  @@unique([screeningId, seatId])
+  @@map("reservation_seats")
+}
