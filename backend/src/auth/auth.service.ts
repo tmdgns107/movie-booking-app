@@ -21,6 +21,14 @@ export class AuthService {
     private readonly jwt: JwtService,
   ) {}
 
+  async checkEmailAvailability(email: string): Promise<{ available: boolean }> {
+    const existing = await this.prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+    return { available: !existing };
+  }
+
   async signup(dto: SignupDto) {
     const existing = await this.prisma.user.findUnique({
       where: { email: dto.email },

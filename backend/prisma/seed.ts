@@ -5,13 +5,14 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Seeding database...');
 
-  // 기존 데이터 정리
+  // 기존 데이터 정리 (FK 의존성 역순)
   await prisma.reservationSeat.deleteMany();
   await prisma.reservation.deleteMany();
   await prisma.screening.deleteMany();
   await prisma.seat.deleteMany();
   await prisma.theater.deleteMany();
   await prisma.movie.deleteMany();
+  await prisma.user.deleteMany();
 
   // 영화
   const movies = await Promise.all([

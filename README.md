@@ -17,6 +17,9 @@
 - **인증**: JWT (Access Token, TTL 1시간) + Passport
 - **암호화**: bcrypt (saltRounds 10)
 - **검증**: class-validator + class-transformer
+- **Rate Limiting**: @nestjs/throttler
+- **보안 헤더**: helmet
+- **환경변수 검증**: Joi
 - **API 문서**: Swagger (@nestjs/swagger)
 
 ### Frontend
@@ -80,6 +83,14 @@ npm run start:dev   # 개발 모드 (watch)
 # 또는
 npm run build && npm run start:prod   # 프로덕션 빌드
 ```
+
+### 6. (선택) e2e 테스트 실행
+
+```bash
+npm run test:e2e
+```
+
+좌석 동시 예매 시 1건만 성공하는지 등 동시성 처리 로직을 검증한다.
 
 기동 후 안내:
 - API 서버: `http://localhost:3001/api`
@@ -203,9 +214,19 @@ model ReservationSeat {
 - 비밀번호 정책:
   - 최소 8자
   - 특수문자 1개 이상 포함 (`@Matches` 정규식)
+  - 3자 이상 연속된 숫자 미포함 (오름차순/내림차순 모두, 커스텀 validator `@NoSequentialDigits`)
   - 이메일 local part 미포함 (커스텀 validator `@NotContainsEmail`)
 - 로그인 실패 시 "이메일 미존재"와 "비밀번호 불일치"를 동일 메시지로 응답 → account enumeration 방어.
 - DB 응답 시 `password` 컬럼 `select` 제외하여 외부 노출 차단.
+
+### 2-1. Rate Limiting (account enumeration / brute-force 방어)
+
+- 전역 기본: **분당 100회 / IP** (`ThrottlerGuard`를 `APP_GUARD`로 등록).
+- 민감 엔드포인트 강화:
+  - `GET /auth/check-email`: **분당 30회** — 이메일 입력 즉시 호출되는 특성상 가입자 명단 추측 시도 방지.
+  - `POST /auth/login`: **분당 10회** — brute-force 공격의 주 표적이므로 추가 강화.
+- 한도 초과 시 `429 Too Many Requests` 응답.
+- 분산 환경에서는 메모리 기반 카운터로 우회 가능 → 실서비스 시 Redis storage 도입 필요 (의도적 단순화).
 
 ### 3. JWT 인증
 
@@ -260,6 +281,53 @@ model ReservationSeat {
 - `healthcheck`로 DB 준비 완료 대기 가능.
 - 명명된 volume(`postgres-data`)로 데이터 영속화.
 
+### 글로벌 예외 필터
+- `GlobalExceptionFilter`로 모든 예외를 일관된 JSON 형식으로 응답.
+  ```json
+  {
+    "statusCode": 404,
+    "message": "영화를 찾을 수 없습니다.",
+    "error": "Not Found",
+    "path": "/api/movies/99999",
+    "timestamp": "2026-04-30T12:34:56.789Z"
+  }
+  ```
+- Prisma 에러를 적절한 HTTP 상태로 자동 매핑:
+  - `P2025` (record not found) → `404 Not Found`
+  - `P2002` (unique violation) → `409 Conflict`
+  - `P2003` (foreign key violation) → `400 Bad Request`
+- 5xx는 stack trace 포함 error 로그, 4xx는 warn 로그.
+- 예상치 못한 에러는 일반 메시지로 응답하여 내부 정보 노출 차단.
+
+### 환경변수 검증 (Joi)
+- 부팅 시점에 `.env` 값을 검증, 누락/형식 오류 시 즉시 부팅 실패.
+- 검증 항목:
+  - `DATABASE_URL`: postgresql/postgres URI 필수
+  - `JWT_SECRET`: 최소 16자 필수 (brute-force 방어)
+  - `JWT_EXPIRES_IN`: 기본값 `1h`
+  - `PORT`: 1~65535 정수, 기본값 3001
+  - `NODE_ENV`: `development` / `production` / `test`
+- `abortEarly: false`로 모든 오류를 한 번에 보고.
+
+### 보안 헤더 (Helmet)
+- `app.use(helmet())` 한 줄로 OWASP 권장 보안 헤더 자동 부여.
+- 적용되는 주요 헤더:
+  - `Strict-Transport-Security`: HTTPS 강제
+  - `X-Content-Type-Options: nosniff`: MIME sniffing 방어
+  - `X-Frame-Options: SAMEORIGIN`: Clickjacking 방어
+  - `Content-Security-Policy`: XSS / 데이터 인젝션 방어
+  - `Cross-Origin-*-Policy`: 사이드 채널 공격 격리
+  - `Referrer-Policy: no-referrer`: 외부 사이트로 Referer 노출 방지
+
+### 동시성 통합 테스트 (e2e)
+- 동시성 처리 핵심 로직(DB unique 제약 + 트랜잭션)을 실제 동작으로 검증.
+- 테스트 시나리오:
+  - 동일 좌석에 대한 20개 동시 예매 요청 → 1건만 성공 + 19건 409
+  - 서로 다른 좌석 동시 예매 → 모두 성공
+  - 단일 요청 내 좌석 중복 → 400 차단
+  - 취소 후 동일 좌석 재예매 → 정상 처리
+- 실행: `npm run test:e2e`
+
 ### 시드 스크립트
 - 영화 4편 + 상영관 2개 + 좌석 80석 + 상영 48건을 멱등(idempotent)하게 재구성.
 - 매 실행 시 기존 데이터 정리 후 재삽입 → 테스트 환경 일관성 확보.
@@ -268,17 +336,18 @@ model ReservationSeat {
 
 ## API 명세
 
-| Method | Endpoint | 설명 | 인증 |
-|--------|----------|------|------|
-| POST | `/api/auth/signup` | 회원가입 | - |
-| POST | `/api/auth/login` | 로그인 | - |
-| GET | `/api/auth/me` | 내 정보 조회 | JWT |
-| GET | `/api/movies` | 영화 목록 조회 | - |
-| GET | `/api/movies/:id` | 영화 상세 조회 | - |
-| GET | `/api/screenings?movieId=` | 상영 시간 목록 조회 (영화별 필터) | - |
-| GET | `/api/screenings/:id` | 상영 상세 + 좌석 점유 현황 | - |
-| POST | `/api/reservations` | 좌석 예매 | JWT |
-| GET | `/api/reservations` | 내 예매 내역 조회 | JWT |
-| PATCH | `/api/reservations/:id/cancel` | 예매 취소 | JWT |
+| Method | Endpoint | 설명 | 인증 | Rate Limit |
+|--------|----------|------|------|-----------|
+| GET | `/api/auth/check-email?email=` | 이메일 사용 가능 여부 확인 | - | 30/분 |
+| POST | `/api/auth/signup` | 회원가입 | - | 100/분 |
+| POST | `/api/auth/login` | 로그인 | - | 10/분 |
+| GET | `/api/auth/me` | 내 정보 조회 | JWT | 100/분 |
+| GET | `/api/movies` | 영화 목록 조회 | - | 100/분 |
+| GET | `/api/movies/:id` | 영화 상세 조회 | - | 100/분 |
+| GET | `/api/screenings?movieId=` | 상영 시간 목록 조회 (영화별 필터) | - | 100/분 |
+| GET | `/api/screenings/:id` | 상영 상세 + 좌석 점유 현황 | - | 100/분 |
+| POST | `/api/reservations` | 좌석 예매 | JWT | 100/분 |
+| GET | `/api/reservations` | 내 예매 내역 조회 | JWT | 100/분 |
+| PATCH | `/api/reservations/:id/cancel` | 예매 취소 | JWT | 100/분 |
 
 상세 명세는 Swagger UI (`/api-docs`) 참고.
