@@ -5,7 +5,9 @@ import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { getScreeningDetail, createReservation } from '@/lib/api';
 import { getToken } from '@/lib/auth';
-import type { ScreeningDetail, SeatWithStatus } from '@/types';
+import { ScreeningSkeleton } from '@/components/Skeleton';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import type { ScreeningDetail, SeatWithStatus, Reservation } from '@/types';
 
 export default function ScreeningPage() {
   const { id } = useParams<{ id: string }>();
@@ -16,6 +18,11 @@ export default function ScreeningPage() {
   const [selected, setSelected] = useState<number[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // 비로그인 안내 모달
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  // 예매 완료 모달
+  const [completedReservation, setCompletedReservation] = useState<Reservation | null>(null);
 
   const { data: detail, isLoading } = useQuery<ScreeningDetail>({
     queryKey: ['screening', screeningId],
@@ -33,7 +40,7 @@ export default function ScreeningPage() {
 
   async function handleReserve() {
     if (!getToken()) {
-      router.push('/login');
+      setShowLoginPrompt(true);
       return;
     }
     if (selected.length === 0) {
@@ -43,9 +50,10 @@ export default function ScreeningPage() {
     setError('');
     setLoading(true);
     try {
-      await createReservation({ screeningId, seatIds: selected });
+      const reservation = await createReservation({ screeningId, seatIds: selected });
       await queryClient.invalidateQueries({ queryKey: ['screening', screeningId] });
-      router.push('/reservations');
+      setSelected([]);
+      setCompletedReservation(reservation);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : '예매 실패');
     } finally {
@@ -53,21 +61,88 @@ export default function ScreeningPage() {
     }
   }
 
-  if (isLoading) return <p className="text-gray-500">불러오는 중...</p>;
+  if (isLoading) return <ScreeningSkeleton />;
   if (!detail) return <p className="text-red-500">상영 정보를 찾을 수 없습니다.</p>;
 
-  // 좌석을 행(row)별로 그룹화
   const rows = Array.from(new Set(detail.seats.map((s) => s.row))).sort();
-
   const totalPrice = selected.length * detail.price;
 
   return (
     <div>
+      {/* 비로그인 안내 다이얼로그 */}
+      {showLoginPrompt && (
+        <ConfirmDialog
+          message="로그인이 필요합니다. 로그인 페이지로 이동하시겠습니까?"
+          confirmLabel="로그인"
+          cancelLabel="취소"
+          onConfirm={() => router.push('/login')}
+          onCancel={() => setShowLoginPrompt(false)}
+        />
+      )}
+
+      {/* 예매 완료 모달 */}
+      {completedReservation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-80 rounded-lg bg-white p-6 shadow-lg">
+            <div className="mb-4 text-center">
+              <span className="text-3xl">🎉</span>
+              <h2 className="mt-2 text-lg font-bold text-gray-900">예매 완료!</h2>
+            </div>
+            <div className="space-y-1.5 rounded bg-gray-50 p-3 text-sm text-gray-700">
+              <p>
+                <span className="text-gray-400">영화</span>{' '}
+                <span className="font-medium">{detail.movie?.title}</span>
+              </p>
+              <p>
+                <span className="text-gray-400">일시</span>{' '}
+                <span className="font-medium">
+                  {new Date(detail.startTime).toLocaleString('ko-KR', {
+                    month: 'long',
+                    day: 'numeric',
+                    weekday: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              </p>
+              <p>
+                <span className="text-gray-400">상영관</span>{' '}
+                <span className="font-medium">{detail.theater?.name}</span>
+              </p>
+              <p>
+                <span className="text-gray-400">좌석</span>{' '}
+                <span className="font-medium">
+                  {completedReservation.seats.map((s) => `${s.row}${s.col}`).join(', ')}
+                </span>
+              </p>
+              <p>
+                <span className="text-gray-400">결제금액</span>{' '}
+                <span className="font-medium text-blue-600">
+                  {completedReservation.totalPrice.toLocaleString()}원
+                </span>
+              </p>
+            </div>
+            <div className="mt-5 flex gap-2">
+              <button
+                onClick={() => setCompletedReservation(null)}
+                className="flex-1 rounded border border-gray-300 py-2 text-sm text-gray-600 hover:bg-gray-50"
+              >
+                계속 예매
+              </button>
+              <button
+                onClick={() => router.push('/reservations')}
+                className="flex-1 rounded bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                예매 내역 보기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 상영 정보 요약 */}
       <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4">
-        <h1 className="text-lg font-bold text-gray-900">
-          {detail.movie?.title}
-        </h1>
+        <h1 className="text-lg font-bold text-gray-900">{detail.movie?.title}</h1>
         <p className="mt-1 text-sm text-gray-500">
           {new Date(detail.startTime).toLocaleString('ko-KR', {
             month: 'long',
@@ -82,18 +157,14 @@ export default function ScreeningPage() {
 
       {/* 좌석 선택 */}
       <div className="rounded-lg border border-gray-200 bg-white p-6">
-        {/* 스크린 */}
         <div className="mb-6 rounded bg-gray-100 py-2 text-center text-xs text-gray-400">
           SCREEN
         </div>
 
-        {/* 좌석 그리드 */}
         <div className="space-y-2">
           {rows.map((row) => (
             <div key={row} className="flex items-center gap-2">
-              <span className="w-5 text-center text-xs text-gray-400">
-                {row}
-              </span>
+              <span className="w-5 text-center text-xs text-gray-400">{row}</span>
               <div className="flex gap-1.5">
                 {detail.seats
                   .filter((s) => s.row === row)
@@ -124,18 +195,17 @@ export default function ScreeningPage() {
           ))}
         </div>
 
-        {/* 범례 */}
         <div className="mt-5 flex gap-4 text-xs text-gray-500">
           <span className="flex items-center gap-1.5">
-            <span className="inline-block h-4 w-4 rounded bg-gray-100"></span>
+            <span className="inline-block h-4 w-4 rounded bg-gray-100" />
             선택 가능
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="inline-block h-4 w-4 rounded bg-blue-600"></span>
+            <span className="inline-block h-4 w-4 rounded bg-blue-600" />
             선택됨
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="inline-block h-4 w-4 rounded bg-gray-200"></span>
+            <span className="inline-block h-4 w-4 rounded bg-gray-200" />
             예매됨
           </span>
         </div>

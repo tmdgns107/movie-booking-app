@@ -2,24 +2,23 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { getReservations, cancelReservation } from '@/lib/api';
 import { getToken } from '@/lib/auth';
+import { ReservationSkeleton } from '@/components/Skeleton';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import type { Reservation } from '@/types';
 
 export default function ReservationsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [cancelTargetId, setCancelTargetId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!getToken()) router.push('/login');
   }, [router]);
 
-  const {
-    data: reservations,
-    isLoading,
-    isError,
-  } = useQuery<Reservation[]>({
+  const { data: reservations, isLoading, isError } = useQuery<Reservation[]>({
     queryKey: ['reservations'],
     queryFn: getReservations,
     enabled: !!getToken(),
@@ -32,8 +31,12 @@ export default function ReservationsPage() {
     },
   });
 
-  if (isLoading)
-    return <p className="text-gray-500">예매 내역을 불러오는 중...</p>;
+  if (isLoading) return (
+    <div>
+      <h1 className="mb-6 text-2xl font-bold text-gray-900">내 예매 내역</h1>
+      <ReservationSkeleton />
+    </div>
+  );
 
   if (isError)
     return <p className="text-red-500">예매 내역을 불러오지 못했습니다.</p>;
@@ -43,6 +46,20 @@ export default function ReservationsPage() {
 
   return (
     <div>
+      {/* 취소 확인 다이얼로그 */}
+      {cancelTargetId !== null && (
+        <ConfirmDialog
+          message="예매를 취소하시겠습니까? 취소 후에는 되돌릴 수 없습니다."
+          confirmLabel="예매 취소"
+          cancelLabel="닫기"
+          onConfirm={() => {
+            cancelMut.mutate(cancelTargetId);
+            setCancelTargetId(null);
+          }}
+          onCancel={() => setCancelTargetId(null)}
+        />
+      )}
+
       <h1 className="mb-6 text-2xl font-bold text-gray-900">내 예매 내역</h1>
 
       {reservations?.length === 0 && (
@@ -59,8 +76,7 @@ export default function ReservationsPage() {
               <ReservationCard
                 key={r.id}
                 reservation={r}
-                onCancel={() => cancelMut.mutate(r.id)}
-                cancelling={cancelMut.isPending && cancelMut.variables === r.id}
+                onCancel={() => setCancelTargetId(r.id)}
               />
             ))}
           </div>
@@ -86,11 +102,9 @@ export default function ReservationsPage() {
 function ReservationCard({
   reservation: r,
   onCancel,
-  cancelling,
 }: {
   reservation: Reservation;
   onCancel?: () => void;
-  cancelling?: boolean;
 }) {
   const seats = r.seats.map((s) => `${s.row}${s.col}`).join(', ');
 
@@ -132,10 +146,9 @@ function ReservationCard({
           {onCancel && r.status === 'CONFIRMED' && (
             <button
               onClick={onCancel}
-              disabled={cancelling}
-              className="text-xs text-red-500 hover:underline disabled:opacity-50"
+              className="text-xs text-red-500 hover:underline"
             >
-              {cancelling ? '취소 중...' : '예매 취소'}
+              예매 취소
             </button>
           )}
         </div>

@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { getMovie, getScreenings } from '@/lib/api';
+import { MovieDetailSkeleton } from '@/components/Skeleton';
 import type { Movie, Screening } from '@/types';
 
 function groupByDate(screenings: Screening[]) {
@@ -36,7 +37,7 @@ export default function MoviePage() {
   });
 
   if (movieLoading || screeningsLoading)
-    return <p className="text-gray-500">불러오는 중...</p>;
+    return <MovieDetailSkeleton />;
 
   if (!movie) return <p className="text-red-500">영화를 찾을 수 없습니다.</p>;
 

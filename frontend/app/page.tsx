@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import Image from 'next/image';
 import Link from 'next/link';
 import { getMovies } from '@/lib/api';
+import { MovieCardSkeleton } from '@/components/Skeleton';
 import type { Movie } from '@/types';
 
 export default function HomePage() {
@@ -13,7 +14,14 @@ export default function HomePage() {
   });
 
   if (isLoading)
-    return <p className="text-gray-500">영화 목록을 불러오는 중...</p>;
+    return (
+      <div>
+        <h1 className="mb-6 text-2xl font-bold text-gray-900">상영 중인 영화</h1>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {[...Array(4)].map((_, i) => <MovieCardSkeleton key={i} />)}
+        </div>
+      </div>
+    );
 
   if (isError)
     return <p className="text-red-500">영화 목록을 불러오지 못했습니다.</p>;
