@@ -1,23 +1,31 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { getToken, removeToken } from '@/lib/auth';
 import { getMe } from '@/lib/api';
 
 export default function Header() {
   const router = useRouter();
+  const pathname = usePathname();
   const [userName, setUserName] = useState<string | null>(null);
 
+  // pathname을 의존성으로 추가 — 페이지 이동 시마다 토큰 상태 재확인.
+  // Next.js App Router는 레이아웃을 재마운트하지 않으므로 빈 배열로는
+  // 로그인 직후 상태 변경을 감지하지 못함.
   useEffect(() => {
-    if (!getToken()) return;
+    if (!getToken()) {
+      setUserName(null);
+      return;
+    }
     getMe()
       .then((me) => setUserName(me.name))
       .catch(() => {
         removeToken();
+        setUserName(null);
       });
-  }, []);
+  }, [pathname]);
 
   function logout() {
     removeToken();

@@ -144,15 +144,15 @@ export default function ScreeningPage() {
       {/* 예매 하단 바 */}
       <div className="mt-6 flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4">
         <div className="text-sm text-gray-700">
-          {selected.length > 0 ? (
+          선택된 좌석:{' '}
+          <span className="font-medium">{selected.length}석</span>
+          {selected.length > 0 && (
             <>
-              <span className="font-medium">{selected.length}석</span> 선택 ·{' '}
+              {' '}·{' '}
               <span className="font-medium text-blue-600">
                 {totalPrice.toLocaleString()}원
               </span>
             </>
-          ) : (
-            <span className="text-gray-400">좌석을 선택해 주세요</span>
           )}
         </div>
 

@@ -60,6 +60,16 @@ export function login(body: {
   return request('/auth/login', { method: 'POST', body: JSON.stringify(body) });
 }
 
+export function resetPassword(body: {
+  email: string;
+  newPassword: string;
+}): Promise<{ message: string }> {
+  return request('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
 export function getMe(): Promise<MeResponse> {
   return request('/auth/me');
 }

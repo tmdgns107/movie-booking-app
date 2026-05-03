@@ -41,74 +41,109 @@
 - Docker / Docker Compose
 - npm
 
-### 1. 의존성 설치
+---
+
+### 방법 A — 쉘 스크립트로 한 번에 실행 (권장)
+
+#### 최초 실행 (DB 초기화 + 시드 데이터 + 서버 기동)
 
 ```bash
-cd backend
-npm install
+./scripts/setup.sh
 ```
 
-### 2. 환경변수 설정
+내부 처리 순서:
+1. Docker로 PostgreSQL 컨테이너 기동
+2. DB 준비 대기
+3. 백엔드 의존성 설치 (`npm install`)
+4. DB 마이그레이션 (`prisma migrate deploy`)
+5. Prisma Client 생성 (`prisma generate`)
+6. 시드 데이터 주입 (영화 4편, 상영관 2개, 좌석 80석, 상영 48건)
+7. 프론트엔드 의존성 설치 (`npm install`)
+8. 백엔드 + 프론트엔드 서버 동시 기동
+
+#### 이후 재실행 (DB는 이미 구성된 상태)
+
+```bash
+./scripts/start.sh
+```
+
+내부 처리 순서:
+1. Docker 컨테이너 기동
+2. DB 준비 대기
+3. 백엔드 + 프론트엔드 서버 동시 기동
+
+> `Ctrl+C` 로 종료 시 두 서버와 DB 컨테이너가 함께 정지됩니다.
+
+---
+
+### 방법 B — 수동 단계별 실행
+
+#### 1. 환경변수 설정
 
 `backend/.env.example` 참고하여 `backend/.env` 작성.
 
 ```
 DATABASE_URL="postgresql://admin:admin@localhost:5432/movie_booking?schema=public"
-JWT_SECRET="your-secret-key"
+JWT_SECRET="your-secret-key-min-16chars"
 JWT_EXPIRES_IN="1h"
 PORT=3001
 ```
 
-### 3. PostgreSQL 컨테이너 기동
-
-프로젝트 루트에서 실행.
+#### 2. PostgreSQL 컨테이너 기동
 
 ```bash
 docker compose up -d
 ```
 
-### 4. DB 마이그레이션 + 시드 데이터 주입
+#### 3. 백엔드 의존성 설치 + DB 초기화
 
 ```bash
 cd backend
-npx prisma migrate dev
+npm install
+npx prisma migrate deploy
+npx prisma generate
 npx ts-node prisma/seed.ts
 ```
 
-시드 데이터 구성:
-- 영화 4편 (인터스텔라, 듄, 인셉션, 프로젝트 헤일메리)
-- 상영관 2개 (1관, 2관) × 좌석 40석 (5행 × 8열)
-- 상영 시간표 (오늘부터 4일 × 영화 4편 × 상영관 2개 × 회차 2건)
-
-### 5. 백엔드 서버 실행
-
-```bash
-npm run start:dev   # 개발 모드 (watch)
-# 또는
-npm run build && npm run start:prod   # 프로덕션 빌드
-```
-
-### 6. 프론트엔드 실행
+#### 4. 프론트엔드 의존성 설치
 
 ```bash
 cd frontend
 npm install
-npm run dev   # http://localhost:3000
 ```
 
-백엔드 서버(`localhost:3001`)가 먼저 실행되어 있어야 함.
-
-### 7. (선택) e2e 테스트 실행
+#### 5. 서버 실행 (터미널 두 개)
 
 ```bash
+# 터미널 1 — 백엔드
+cd backend && npm run start:dev
+
+# 터미널 2 — 프론트엔드
+cd frontend && npm run dev
+```
+
+---
+
+### (선택) e2e 테스트 실행
+
+```bash
+cd backend
 npm run test:e2e
 ```
 
-좌석 동시 예매 시 1건만 성공하는지 등 동시성 처리 로직을 검증한다.
+좌석 동시 예매 시 1건만 성공하는지 등 동시성 처리 로직을 검증합니다.
 
-기동 후 안내:
-- API 서버: `http://localhost:3001/api`
-- Swagger UI: `http://localhost:3001/api-docs`
+---
+
+### 기동 후 접속 주소
+
+| 서비스 | 주소 |
+|--------|------|
+| 프론트엔드 | http://localhost:3000 |
+| 백엔드 API | http://localhost:3001/api |
+| Swagger UI | http://localhost:3001/api-docs |
+
+---
 
 ### 종료 / 정리
 

@@ -11,7 +11,6 @@ export default function ReservationsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  // 비로그인 시 로그인 페이지로 이동
   useEffect(() => {
     if (!getToken()) router.push('/login');
   }, [router]);
@@ -39,7 +38,7 @@ export default function ReservationsPage() {
   if (isError)
     return <p className="text-red-500">예매 내역을 불러오지 못했습니다.</p>;
 
-  const active = reservations?.filter((r) => r.status === 'CONFIRMED') ?? [];
+  const active    = reservations?.filter((r) => r.status === 'CONFIRMED')  ?? [];
   const cancelled = reservations?.filter((r) => r.status === 'CANCELLED') ?? [];
 
   return (
@@ -50,7 +49,6 @@ export default function ReservationsPage() {
         <p className="text-gray-500">예매 내역이 없습니다.</p>
       )}
 
-      {/* 예매 확정 */}
       {active.length > 0 && (
         <section className="mb-8">
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
@@ -69,7 +67,6 @@ export default function ReservationsPage() {
         </section>
       )}
 
-      {/* 취소된 예매 */}
       {cancelled.length > 0 && (
         <section>
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
@@ -95,26 +92,22 @@ function ReservationCard({
   onCancel?: () => void;
   cancelling?: boolean;
 }) {
-  const seats = r.reservationSeats
-    .map((rs) => `${rs.seat.row}${rs.seat.col}`)
-    .join(', ');
+  const seats = r.seats.map((s) => `${s.row}${s.col}`).join(', ');
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-4">
       <div className="flex items-start justify-between">
         <div>
-          <p className="font-semibold text-gray-900">
-            {r.screening.movie.title}
-          </p>
+          <p className="font-semibold text-gray-900">{r.movieTitle}</p>
           <p className="mt-0.5 text-sm text-gray-500">
-            {new Date(r.screening.startTime).toLocaleString('ko-KR', {
+            {new Date(r.startTime).toLocaleString('ko-KR', {
               month: 'long',
               day: 'numeric',
               weekday: 'short',
               hour: '2-digit',
               minute: '2-digit',
             })}{' '}
-            · {r.screening.theater.name}
+            · {r.theaterName}
           </p>
           <p className="mt-1 text-sm text-gray-600">
             좌석: <span className="font-medium">{seats}</span>

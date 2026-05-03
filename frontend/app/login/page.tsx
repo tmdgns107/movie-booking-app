@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { login } from '@/lib/api';
 import { setToken } from '@/lib/auth';
+import PasswordInput from '@/components/PasswordInput';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -50,13 +51,13 @@ export default function LoginPage() {
           <label className="block text-sm font-medium text-gray-700">
             비밀번호
           </label>
-          <input
-            type="password"
-            required
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-            className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
-          />
+          <div className="mt-1">
+            <PasswordInput
+              value={form.password}
+              onChange={(v) => setForm({ ...form, password: v })}
+              required
+            />
+          </div>
         </div>
 
         {error && <p className="text-sm text-red-500">{error}</p>}
@@ -74,6 +75,11 @@ export default function LoginPage() {
         계정이 없으신가요?{' '}
         <Link href="/signup" className="text-blue-600 hover:underline">
           회원가입
+        </Link>
+      </p>
+      <p className="mt-2 text-center text-sm text-gray-500">
+        <Link href="/reset-password" className="text-gray-400 hover:underline">
+          비밀번호 재설정
         </Link>
       </p>
     </div>

@@ -3,51 +3,40 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { checkEmail, signup } from '@/lib/api';
+import { resetPassword } from '@/lib/api';
 import { validatePassword, isPasswordValid } from '@/lib/validatePassword';
 import PasswordInput from '@/components/PasswordInput';
 
-export default function SignupPage() {
+export default function ResetPasswordPage() {
   const router = useRouter();
   const [form, setForm] = useState({
     email: '',
-    password: '',
-    passwordConfirm: '',
-    name: '',
+    newPassword: '',
+    newPasswordConfirm: '',
   });
-  const [emailStatus, setEmailStatus] = useState<'idle' | 'ok' | 'taken'>('idle');
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const passwordRules = validatePassword(form.password);
-  const passwordValid = isPasswordValid(form.password);
+  const passwordRules = validatePassword(form.newPassword);
+  const passwordValid = isPasswordValid(form.newPassword);
   const passwordMismatch =
-    form.passwordConfirm.length > 0 && form.password !== form.passwordConfirm;
-
-  async function handleEmailBlur() {
-    if (!form.email) return;
-    try {
-      const { available } = await checkEmail(form.email);
-      setEmailStatus(available ? 'ok' : 'taken');
-    } catch {
-      setEmailStatus('idle');
-    }
-  }
+    form.newPasswordConfirm.length > 0 &&
+    form.newPassword !== form.newPasswordConfirm;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (emailStatus === 'taken') return;
     setPasswordTouched(true);
     if (!passwordValid || passwordMismatch) return;
 
     setError('');
     setLoading(true);
     try {
-      await signup({ email: form.email, password: form.password, name: form.name });
+      await resetPassword({ email: form.email, newPassword: form.newPassword });
+      alert('비밀번호가 재설정되었습니다. 새 비밀번호로 로그인해 주세요.');
       router.push('/login');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : '회원가입 실패');
+      setError(err instanceof Error ? err.message : '비밀번호 재설정 실패');
     } finally {
       setLoading(false);
     }
@@ -55,54 +44,37 @@ export default function SignupPage() {
 
   return (
     <div className="mx-auto max-w-sm">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">회원가입</h1>
+      <h1 className="mb-2 text-2xl font-bold text-gray-900">비밀번호 재설정</h1>
+      <p className="mb-6 text-sm text-gray-500">
+        가입한 이메일과 새로운 비밀번호를 입력해 주세요.
+      </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700">이름</label>
-          <input
-            type="text"
-            required
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
-          />
-        </div>
-
         <div>
           <label className="block text-sm font-medium text-gray-700">이메일</label>
           <input
             type="email"
             required
             value={form.email}
-            onChange={(e) => {
-              setForm({ ...form, email: e.target.value });
-              setEmailStatus('idle');
-            }}
-            onBlur={handleEmailBlur}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
             className="mt-1 w-full rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
           />
-          {emailStatus === 'ok' && (
-            <p className="mt-1 text-xs text-green-600">사용 가능한 이메일입니다.</p>
-          )}
-          {emailStatus === 'taken' && (
-            <p className="mt-1 text-xs text-red-500">이미 사용 중인 이메일입니다.</p>
-          )}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">비밀번호</label>
+          <label className="block text-sm font-medium text-gray-700">
+            새 비밀번호
+          </label>
           <div className="mt-1">
             <PasswordInput
-              value={form.password}
+              value={form.newPassword}
               onChange={(v) => {
-                setForm({ ...form, password: v });
+                setForm({ ...form, newPassword: v });
                 setPasswordTouched(true);
               }}
               required
             />
           </div>
-          {/* 실시간 규칙 검증 — 입력 시작 후 표시 */}
           {passwordTouched && (
             <ul className="mt-1.5 space-y-0.5">
               {passwordRules.map((rule) => (
@@ -123,12 +95,12 @@ export default function SignupPage() {
 
         <div>
           <label className="block text-sm font-medium text-gray-700">
-            비밀번호 확인
+            새 비밀번호 확인
           </label>
           <div className="mt-1">
             <PasswordInput
-              value={form.passwordConfirm}
-              onChange={(v) => setForm({ ...form, passwordConfirm: v })}
+              value={form.newPasswordConfirm}
+              onChange={(v) => setForm({ ...form, newPasswordConfirm: v })}
               required
               className={passwordMismatch ? 'border-red-400 focus:border-red-400' : ''}
             />
@@ -142,17 +114,16 @@ export default function SignupPage() {
 
         <button
           type="submit"
-          disabled={loading || emailStatus === 'taken' || passwordMismatch}
+          disabled={loading || passwordMismatch}
           className="w-full rounded bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
         >
-          {loading ? '가입 중...' : '회원가입'}
+          {loading ? '재설정 중...' : '비밀번호 재설정'}
         </button>
       </form>
 
       <p className="mt-4 text-center text-sm text-gray-500">
-        이미 계정이 있으신가요?{' '}
         <Link href="/login" className="text-blue-600 hover:underline">
-          로그인
+          로그인으로 돌아가기
         </Link>
       </p>
     </div>

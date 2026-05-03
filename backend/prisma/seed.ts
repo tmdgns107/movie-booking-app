@@ -60,7 +60,7 @@ async function main() {
         runningTime: 142,
         rating: '12',
         posterUrl:
-          'https://image.tmdb.org/t/p/w500/projectHailMary.jpg',
+          'https://image.tmdb.org/t/p/w500/qqGpVVZk2KD1lAvccgTU4Z6nh1H.jpg',
         releaseDate: new Date('2026-03-20'),
       },
     }),

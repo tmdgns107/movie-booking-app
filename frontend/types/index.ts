@@ -65,19 +65,16 @@ export interface ScreeningDetail {
 
 export type ReservationStatus = 'CONFIRMED' | 'CANCELLED';
 
+// 백엔드 findMine()이 반환하는 플랫(flat) 구조와 일치
 export interface Reservation {
   id: number;
+  screeningId: number;
   status: ReservationStatus;
   totalPrice: number;
+  movieTitle: string;
+  posterUrl?: string | null;
+  theaterName: string;
+  startTime: string;
+  seats: { row: string; col: number }[];
   createdAt: string;
-  screening: {
-    id: number;
-    startTime: string;
-    endTime: string;
-    movie: { title: string };
-    theater: { name: string };
-  };
-  reservationSeats: {
-    seat: { row: string; col: number };
-  }[];
 }

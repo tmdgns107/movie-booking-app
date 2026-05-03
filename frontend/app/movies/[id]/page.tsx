@@ -2,19 +2,9 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { getMovie, getScreenings } from '@/lib/api';
 import type { Movie, Screening } from '@/types';
-
-function formatDatetime(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleString('ko-KR', {
-    month: 'long',
-    day: 'numeric',
-    weekday: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
 
 function groupByDate(screenings: Screening[]) {
   const map = new Map<string, Screening[]>();
@@ -40,9 +30,7 @@ export default function MoviePage() {
     queryFn: () => getMovie(movieId),
   });
 
-  const { data: screenings, isLoading: screeningsLoading } = useQuery<
-    Screening[]
-  >({
+  const { data: screenings, isLoading: screeningsLoading } = useQuery<Screening[]>({
     queryKey: ['screenings', movieId],
     queryFn: () => getScreenings(movieId),
   });
@@ -58,20 +46,43 @@ export default function MoviePage() {
     <div>
       {/* 영화 정보 */}
       <div className="mb-8 rounded-lg border border-gray-200 bg-white p-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{movie.title}</h1>
-            <p className="mt-1 text-sm text-gray-500">
-              {new Date(movie.releaseDate).toLocaleDateString('ko-KR')} 개봉 · {movie.runningTime}분
-            </p>
+        <div className="flex gap-6">
+          {/* 포스터 */}
+          <div className="relative h-56 w-36 shrink-0 overflow-hidden rounded bg-gray-100">
+            {movie.posterUrl ? (
+              <Image
+                src={movie.posterUrl}
+                alt={`${movie.title} 포스터`}
+                fill
+                sizes="144px"
+                className="object-cover"
+                priority
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center p-3 text-center text-sm text-gray-400">
+                {movie.title}
+              </div>
+            )}
           </div>
-          <span className="rounded bg-blue-50 px-2 py-1 text-sm font-medium text-blue-700">
-            {movie.rating}
-          </span>
+
+          {/* 텍스트 정보 */}
+          <div className="flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-gray-900">{movie.title}</h1>
+                <span className="rounded bg-blue-50 px-2 py-1 text-sm font-medium text-blue-700">
+                  {movie.rating}
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-gray-500">
+                {new Date(movie.releaseDate).toLocaleDateString('ko-KR')} 개봉 · {movie.runningTime}분
+              </p>
+              <p className="mt-4 text-sm leading-relaxed text-gray-700">
+                {movie.description}
+              </p>
+            </div>
+          </div>
         </div>
-        <p className="mt-4 text-sm leading-relaxed text-gray-700">
-          {movie.description}
-        </p>
       </div>
 
       {/* 상영 일정 */}

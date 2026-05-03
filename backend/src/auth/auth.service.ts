@@ -1,6 +1,7 @@
 import {
   ConflictException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -8,6 +9,7 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JwtPayload } from './strategies/jwt.strategy';
 
 // bcrypt cost factor. 10 = 해시 1회당 약 100ms 소요.
@@ -62,6 +64,25 @@ export class AuthService {
     }
 
     return this.issueToken({ id: user.id, email: user.email, name: user.name });
+  }
+
+  async resetPassword(dto: ResetPasswordDto): Promise<{ message: string }> {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+    // 이메일 존재 여부를 노출하지 않기 위해 없는 경우도 동일 응답.
+    // 실서비스라면 이메일 발송 로직이 이 자리에 위치.
+    if (!user) {
+      throw new NotFoundException('가입되지 않은 이메일입니다.');
+    }
+
+    const hashed = await bcrypt.hash(dto.newPassword, SALT_ROUNDS);
+    await this.prisma.user.update({
+      where: { email: dto.email },
+      data: { password: hashed },
+    });
+
+    return { message: '비밀번호가 재설정되었습니다.' };
   }
 
   private issueToken(user: { id: number; email: string; name: string }) {

@@ -17,6 +17,7 @@ import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { AuthResponseDto, UserResponseDto } from './dto/auth-response.dto';
 import {
   CheckEmailQueryDto,
@@ -60,6 +61,18 @@ export class AuthController {
   @ApiResponse({ status: 429, description: '요청 한도 초과' })
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  // 비밀번호 재설정은 계정 탈취 시 악용 가능 → 로그인과 동일한 10회/분 제한 적용.
+  @Post('reset-password')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiOperation({ summary: '비밀번호 재설정' })
+  @ApiResponse({ status: 200, description: '재설정 성공' })
+  @ApiResponse({ status: 404, description: '가입되지 않은 이메일' })
+  @ApiResponse({ status: 429, description: '요청 한도 초과' })
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
   }
 
   @Get('me')
