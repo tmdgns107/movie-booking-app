@@ -23,7 +23,11 @@
 - **API 문서**: Swagger (@nestjs/swagger)
 
 ### Frontend
-- 작성 예정 (Next.js 기반 예정)
+- **Framework**: Next.js 16 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **서버 상태 관리**: TanStack Query (React Query v5)
+- **인증 저장**: localStorage (JWT Access Token)
 
 ### Infra
 - **Docker Compose**: PostgreSQL 컨테이너 단일 관리
@@ -84,7 +88,17 @@ npm run start:dev   # 개발 모드 (watch)
 npm run build && npm run start:prod   # 프로덕션 빌드
 ```
 
-### 6. (선택) e2e 테스트 실행
+### 6. 프론트엔드 실행
+
+```bash
+cd frontend
+npm install
+npm run dev   # http://localhost:3000
+```
+
+백엔드 서버(`localhost:3001`)가 먼저 실행되어 있어야 함.
+
+### 7. (선택) e2e 테스트 실행
 
 ```bash
 npm run test:e2e
@@ -131,7 +145,22 @@ movie-booking-app/
 │   ├── .env.example
 │   ├── package.json
 │   └── tsconfig.json
-├── frontend/                      # 작성 예정
+├── frontend/
+│   ├── app/
+│   │   ├── layout.tsx             # 루트 레이아웃 (QueryProvider + Header)
+│   │   ├── page.tsx               # 영화 목록 (홈)
+│   │   ├── login/page.tsx         # 로그인
+│   │   ├── signup/page.tsx        # 회원가입
+│   │   ├── movies/[id]/page.tsx   # 영화 상세 + 상영 일정 선택
+│   │   ├── screenings/[id]/page.tsx # 좌석 선택 + 예매
+│   │   └── reservations/page.tsx  # 내 예매 내역
+│   ├── components/
+│   │   ├── Header.tsx             # 공통 헤더 (로그인/로그아웃)
+│   │   └── QueryProvider.tsx      # TanStack Query 클라이언트 Provider
+│   ├── lib/
+│   │   ├── api.ts                 # 백엔드 API 클라이언트 (fetch 래퍼)
+│   │   └── auth.ts                # JWT 토큰 localStorage 관리
+│   └── types/index.ts             # 공통 타입 정의
 ├── docker-compose.yml             # PostgreSQL 컨테이너 정의
 └── README.md
 ```
