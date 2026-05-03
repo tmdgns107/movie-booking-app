@@ -47,6 +47,28 @@
 
 #### 최초 실행 (DB 초기화 + 시드 데이터 + 서버 기동)
 
+**① 환경변수 설정** (최초 1회)
+
+`backend/.env.example`을 복사하여 `backend/.env`를 생성한다.
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+필요 시 `backend/.env` 내용을 수정한다.
+
+```
+DATABASE_URL="postgresql://admin:admin@localhost:5432/movie_booking?schema=public"
+JWT_SECRET="your-secret-key-min-16chars"
+JWT_EXPIRES_IN="1h"
+PORT=3001
+```
+
+> `.env` 파일이 없으면 `setup.sh`가 자동으로 `.env.example`을 복사하지만,
+> `JWT_SECRET` 등 민감한 값은 직접 확인하고 변경하는 것을 권장합니다.
+
+**② 스크립트 실행**
+
 ```bash
 ./scripts/setup.sh
 ```
