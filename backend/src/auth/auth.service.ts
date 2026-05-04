@@ -70,8 +70,6 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
-    // 이메일 존재 여부를 노출하지 않기 위해 없는 경우도 동일 응답.
-    // 실서비스라면 이메일 발송 로직이 이 자리에 위치.
     if (!user) {
       throw new NotFoundException('가입되지 않은 이메일입니다.');
     }

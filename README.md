@@ -49,7 +49,7 @@
 
 **① 환경변수 설정** (최초 1회)
 
-`backend/.env.example`을 복사하여 `backend/.env`를 생성한다.
+**백엔드** — `backend/.env.example`을 복사하여 `backend/.env`를 생성한다.
 
 ```bash
 cp backend/.env.example backend/.env
@@ -66,6 +66,18 @@ PORT=3001
 
 > `.env` 파일이 없으면 `setup.sh`가 자동으로 `.env.example`을 복사하지만,
 > `JWT_SECRET` 등 민감한 값은 직접 확인하고 변경하는 것을 권장합니다.
+
+**프론트엔드** — `frontend/.env.example`을 복사하여 `frontend/.env`를 생성한다.
+
+```bash
+cp frontend/.env.example frontend/.env
+```
+
+백엔드를 기본 포트(3001)로 실행한다면 수정 없이 그대로 사용 가능하다.
+
+```
+NEXT_PUBLIC_API_URL=http://localhost:3001/api
+```
 
 **② 스크립트 실행**
 
@@ -102,13 +114,19 @@ PORT=3001
 
 #### 1. 환경변수 설정
 
-`backend/.env.example` 참고하여 `backend/.env` 작성.
+**백엔드** — `backend/.env.example` 참고하여 `backend/.env` 작성.
 
 ```
 DATABASE_URL="postgresql://admin:admin@localhost:5432/movie_booking?schema=public"
 JWT_SECRET="your-secret-key-min-16chars"
 JWT_EXPIRES_IN="1h"
 PORT=3001
+```
+
+**프론트엔드** — `frontend/.env.example` 참고하여 `frontend/.env` 작성.
+
+```
+NEXT_PUBLIC_API_URL=http://localhost:3001/api
 ```
 
 #### 2. PostgreSQL 컨테이너 기동
